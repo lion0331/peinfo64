@@ -1,31 +1,35 @@
-#pragma once
+ï»¿#pragma once
 #ifndef INFO_H_
 #define INFO_H_
 
 #include <windows.h>
-#include <richedit.h>	//CHARFORMAT¸»ÎÄ±¾½á¹¹¶¨Òå
-#include <commctrl.h>	//Í¨ÓÃ¿Ø¼þ
+#include <richedit.h>	
+#include <commctrl.h>	
 #pragma comment(lib,"comctl32.lib")
 #include <strsafe.h>	//StringCchCopy
 #include <stdlib.h>
 
-//º¯ÊýÉùÃ÷
 BOOL CALLBACK DlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void Exception(void);
-void init(); //³õÊ¼»¯
-void  _OpenFile();//´ò¿ªPEÎÄ¼þ²¢´¦Àí
-DWORD RVAToOffset(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA);// ½«ÄÚ´æÆ«ÒÆÁ¿RVA×ª»»ÎªÎÄ¼þÆ«ÒÆ
-DWORD GetRVASection(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA);//²éÕÒ RVA ËùÔÚµÄ½ÚÇø
-int  CALLBACK _Handler(EXCEPTION_POINTERS * lpExceptionPoint);
+void init();
+void _OpenFile();
+DWORD RVAToOffset(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA);
+IMAGE_SECTION_HEADER * GetRVASectionHeader(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA);
+int CALLBACK _Handler(EXCEPTION_POINTERS * lpExceptionPoint);
 void ShowErrMsg();
-void _AppendInfo(const TCHAR * _lpsz);//ÍùÎÄ±¾¿òÖÐ×·¼ÓÎÄ±¾
-//PEÎÄ¼þ´¦ÀíÄ£¿é
-void _getMainInfo(PBYTE, IMAGE_NT_HEADERS *, int);//´ÓÄÚ´æÖÐ»ñÈ¡PEÎÄ¼þµÄÖ÷ÒªÐÅÏ¢
-void _getImportInfo(PBYTE, IMAGE_NT_HEADERS *, int);//»ñÈ¡PEÎÄ¼þµÄµ¼Èë±í
-void _getExportInfo(PBYTE, IMAGE_NT_HEADERS *, int);//»ñÈ¡PEÎÄ¼þµÄµ¼³ö±í
-void _getRelocInfo(PBYTE, IMAGE_NT_HEADERS *, int);//»ñÈ¡PEÎÄ¼þµÄÖØ¶¨Î»ÐÅÏ¢
-void _getResourceInfo(PBYTE, IMAGE_NT_HEADERS *, int);//»ñÈ¡PEÎÄ¼þµÄ×ÊÔ´ÐÅÏ¢
-//½«PEInfo.txtÎÄ±¾ÐÅÏ¢¶ÁÈëRichEdit¿Ø¼þ
+void _AppendInfo(const TCHAR * _lpsz);
+BOOL WriteTextToDump(HANDLE hFile, const TCHAR * text);
+void CopySectionName(const IMAGE_SECTION_HEADER * section, TCHAR * buffer, size_t bufferCount);
+void CopyAnsiToWide(const char * source, TCHAR * buffer, size_t bufferCount);
+BOOL IsPe64(const IMAGE_NT_HEADERS * ntHeader);
+PBYTE OffsetToPtr(PBYTE fileBase, DWORD fileOffset);
+
+void _getMainInfo(PBYTE, IMAGE_NT_HEADERS *, int);
+void _getImportInfo(PBYTE, IMAGE_NT_HEADERS *, int);
+void _getExportInfo(PBYTE, IMAGE_NT_HEADERS *, int);
+void _getRelocInfo(PBYTE, IMAGE_NT_HEADERS *, int);
+void _getResourceInfo(PBYTE, IMAGE_NT_HEADERS *, int);
+
 void _readToRichEdit();
 
 #endif

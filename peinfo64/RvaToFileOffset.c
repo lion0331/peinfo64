@@ -2,78 +2,104 @@
 将 RVA 转换成实际的数据位置和查找 RVA 所在的节区
 */
 #include <windows.h>
+#include "info.h"
 
-extern HANDLE hWinEdit;
-extern HWND hWinMain;
+extern HWND hWinEdit;
 
 const TCHAR szNotFound[] = TEXT("无法查找");
 
-//将 RVA 转换成实际的数据位置
-DWORD RVAToOffset(IMAGE_DOS_HEADER * lpFileHead,DWORD dwRVA)
+BOOL IsPe64(const IMAGE_NT_HEADERS * ntHeader)
 {
-	DWORD dwReturn;
-	IMAGE_NT_HEADERS * lpstNT;		//PE文件头
-	IMAGE_SECTION_HEADER * lpstSE;	//节表，8个字节的节区名称为ASCII码字符
-	IMAGE_DOS_HEADER * lpstDOS;
-
-	lpstDOS = lpFileHead;
-	lpstNT = (IMAGE_NT_HEADERS *)((PBYTE)lpstDOS + lpstDOS->e_lfanew);			//PE文件头地址
-	lpstSE = (IMAGE_SECTION_HEADER *)((PBYTE)lpstNT + sizeof(IMAGE_NT_HEADERS));//节表地址
-	if (lpstNT->OptionalHeader.Magic == 0x020B) //64位PE文件
-	{
-		lpstSE = (IMAGE_SECTION_HEADER *)((PBYTE)lpstSE + 16);
-	}
-	int count = lpstNT->FileHeader.NumberOfSections;	//节区数目
-	//扫描每个节区并判断 RVA 是否位于这个节区内
-	for (int i = 0; i < count;i++)
-	{
-		if ((dwRVA >= lpstSE->VirtualAddress) &&						//节区的RVA地址
-			(dwRVA < (lpstSE->VirtualAddress + lpstSE->SizeOfRawData))) //在文件中对齐后的尺寸
-		{
-			//实际位置FOA=在文件内的偏移+节区偏移 ---（节区偏移=数据目录项中的数据起始dwRVA-节区的RVA地址）
-			dwReturn = (DWORD)(lpstSE->PointerToRawData + (dwRVA - lpstSE->VirtualAddress));
-			return dwReturn;
-		}
-		lpstSE++;
-	}
-	MessageBox(hWinEdit, szNotFound, NULL, MB_OK);
-	return dwReturn = 0;
+	return ntHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
 }
 
-//查找 RVA 所在的节区
-/*
-根据导入表描述符桥1所在的地址区间判断所属的节区
-dwRVA = pstIM->OriginalFirstThunk
-dwRVA >= lpstSE->VirtualAddress && 
-dwRVA < (lpstSE->VirtualAddress + lpstSE->SizeOfRawData)
-*/
-DWORD GetRVASection(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA)
+PBYTE OffsetToPtr(PBYTE fileBase, DWORD fileOffset)
 {
-	DWORD dwReturn;
-	IMAGE_NT_HEADERS * lpstNT;		//PE文件头
-	IMAGE_SECTION_HEADER * lpstSE;	//节表，8个字节的节区名称为ASCII码字符
-	IMAGE_DOS_HEADER * lpstDOS;
+	if (!fileBase)
+		return NULL;
+	return fileBase + fileOffset;
+}
 
-	lpstDOS = lpFileHead;
-	lpstNT = (IMAGE_NT_HEADERS *)((PBYTE)lpstDOS + lpstDOS->e_lfanew);			//PE文件头地址
-	lpstSE = (IMAGE_SECTION_HEADER *)((PBYTE)lpstNT + sizeof(IMAGE_NT_HEADERS));//节表地址
-	if (lpstNT->OptionalHeader.Magic == 0x020B) //64位PE文件
+BOOL WriteTextToDump(HANDLE hFile, const TCHAR * text)
+{
+	DWORD bytesWritten = 0;
+
+	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE || text == NULL)
+		return FALSE;
+
+	return WriteFile(hFile, text, lstrlen(text) * sizeof(TCHAR), &bytesWritten, NULL);
+}
+
+void CopyAnsiToWide(const char * source, TCHAR * buffer, size_t bufferCount)
+{
+	if (!buffer || bufferCount == 0)
+		return;
+
+	buffer[0] = TEXT('\0');
+	if (!source)
+		return;
+
+	MultiByteToWideChar(CP_ACP, 0, source, -1, buffer, (int)bufferCount);
+}
+
+void CopySectionName(const IMAGE_SECTION_HEADER * section, TCHAR * buffer, size_t bufferCount)
+{
+	char ansiName[IMAGE_SIZEOF_SHORT_NAME + 1] = { 0 };
+
+	if (!buffer || bufferCount == 0)
+		return;
+
+	buffer[0] = TEXT('\0');
+	if (!section)
+		return;
+
+	CopyMemory(ansiName, section->Name, IMAGE_SIZEOF_SHORT_NAME);
+	CopyAnsiToWide(ansiName, buffer, bufferCount);
+}
+
+DWORD RVAToOffset(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA)
+{
+	IMAGE_NT_HEADERS * ntHeader;
+	IMAGE_SECTION_HEADER * section;
+
+	ntHeader = (IMAGE_NT_HEADERS *)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
+	section = IMAGE_FIRST_SECTION(ntHeader);
+
+	if (dwRVA < ntHeader->OptionalHeader.SizeOfHeaders)
+		return dwRVA;
+
+	for (WORD index = 0; index < ntHeader->FileHeader.NumberOfSections; ++index, ++section)
 	{
-		lpstSE = (IMAGE_SECTION_HEADER *)((PBYTE)lpstSE + 16);
+		DWORD sectionSize = section->Misc.VirtualSize;
+		if (sectionSize < section->SizeOfRawData)
+			sectionSize = section->SizeOfRawData;
+
+		if (dwRVA >= section->VirtualAddress && dwRVA < section->VirtualAddress + sectionSize)
+			return section->PointerToRawData + (dwRVA - section->VirtualAddress);
 	}
-	int count = lpstNT->FileHeader.NumberOfSections;	//节区数目
-	//扫描每个节区并判断 RVA 是否位于这个节区内
-	for (int i = 0; i < count; i++)
-	{
-		if ((dwRVA >= lpstSE->VirtualAddress) &&
-			(dwRVA < (lpstSE->VirtualAddress + lpstSE->SizeOfRawData)))
-		{
-			//实际位置=在文件内的偏移+RVA虚拟地址+节区偏移
-			dwReturn = (DWORD)lpstSE;
-			return dwReturn;
-		}
-		lpstSE++;
-	}
+
 	MessageBox(hWinEdit, szNotFound, NULL, MB_OK);
-	return dwReturn = 0;
+	return 0;
+}
+
+IMAGE_SECTION_HEADER * GetRVASectionHeader(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA)
+{
+	IMAGE_NT_HEADERS * ntHeader;
+	IMAGE_SECTION_HEADER * section;
+
+	ntHeader = (IMAGE_NT_HEADERS *)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
+	section = IMAGE_FIRST_SECTION(ntHeader);
+
+	for (WORD index = 0; index < ntHeader->FileHeader.NumberOfSections; ++index, ++section)
+	{
+		DWORD sectionSize = section->Misc.VirtualSize;
+		if (sectionSize < section->SizeOfRawData)
+			sectionSize = section->SizeOfRawData;
+
+		if (dwRVA >= section->VirtualAddress && dwRVA < section->VirtualAddress + sectionSize)
+			return section;
+	}
+
+	MessageBox(hWinEdit, szNotFound, NULL, MB_OK);
+	return NULL;
 }
