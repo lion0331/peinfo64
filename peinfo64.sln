@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.1062
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "peinfo64", "peinfo64\peinfo64.vcxproj", "{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}.Debug|x64.ActiveCfg = Debug|x64
+		{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}.Debug|x64.Build.0 = Debug|x64
+		{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}.Debug|x86.ActiveCfg = Debug|Win32
+		{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}.Debug|x86.Build.0 = Debug|Win32
+		{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}.Release|x64.ActiveCfg = Release|x64
+		{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}.Release|x64.Build.0 = Release|x64
+		{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}.Release|x86.ActiveCfg = Release|Win32
+		{E23DEAD6-4B73-403F-BBE8-7D452ED75C85}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7A20E611-9EFB-4CA9-8A3F-A2AE08F37374}
+	EndGlobalSection
+EndGlobal
