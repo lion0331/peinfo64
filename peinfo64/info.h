@@ -1,4 +1,5 @@
 ﻿#pragma once
+#pragma execution_character_set("utf-8")
 #ifndef INFO_H_
 #define INFO_H_
 
