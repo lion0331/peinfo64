@@ -256,37 +256,6 @@ Cleanup:
 	_readToRichEdit();
 }
 
-void _AppendInfo(const TCHAR * _lpsz)
-{
-	CHARRANGE stCR;
-
-	stCR.cpMin = GetWindowTextLength(hWinEdit);
-	stCR.cpMax = stCR.cpMin;
-	SendMessage(hWinEdit, EM_EXSETSEL, 0, (LPARAM)&stCR);
-	SendMessage(hWinEdit, EM_REPLACESEL, FALSE, (LPARAM)_lpsz);
-}
-
-void _Init()
-{
-	CHARFORMAT stCf;
-	static TCHAR szFont[] = TEXT("宋体");
-
-	hWinEdit = GetDlgItem(hWinMain, IDC_INFO);
-	SendMessage(hWinEdit, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
-	RtlZeroMemory(&stCf, sizeof(stCf));
-	stCf.cbSize = sizeof(stCf);
-	stCf.yHeight = 9 * 20;
-	stCf.dwMask = CFM_FACE | CFM_SIZE | CFM_BOLD;
-	StringCchCopy(stCf.szFaceName, ARRAYSIZE(stCf.szFaceName), szFont);
-	SendMessage(hWinEdit, EM_SETCHARFORMAT, 0, (LPARAM)&stCf);
-	SendMessage(hWinEdit, EM_EXLIMITTEXT, 0, -1);
-}
-
-void Exception(void)
-{
-	MessageBox(hWinMain, TEXT("获得文件在内存的映象起始位置失败!"), NULL, MB_OK);
-}
-
 void _readToRichEdit()
 {
 	const TCHAR szErrOpenFile[] = TEXT("无法打开源文件!");

@@ -10,14 +10,12 @@
 #include <stdlib.h>
 
 BOOL CALLBACK DlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-void Exception(void);
 void init();
 void _OpenFile();
 DWORD RVAToOffset(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA);
 IMAGE_SECTION_HEADER * GetRVASectionHeader(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA);
 int CALLBACK _Handler(EXCEPTION_POINTERS * lpExceptionPoint);
 void ShowErrMsg();
-void _AppendInfo(const TCHAR * _lpsz);
 BOOL WriteTextToDump(HANDLE hFile, const TCHAR * text);
 void CopySectionName(const IMAGE_SECTION_HEADER * section, TCHAR * buffer, size_t bufferCount);
 void CopyAnsiToWide(const char * source, TCHAR * buffer, size_t bufferCount);
