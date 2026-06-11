@@ -17,7 +17,7 @@ static void DumpImportThunk32(PBYTE lpFile, DWORD thunkRva)
 	{
 		if (thunk->u1.Ordinal & IMAGE_ORDINAL_FLAG32)
 		{
-			StringCchPrintf(lineBuffer, ARRAYSIZE(lineBuffer), TEXT("%8u  (无函数名,按序号导入)\r\n"), IMAGE_ORDINAL32(thunk->u1.Ordinal));
+			StringCchPrintf(lineBuffer, ARRAYSIZE(lineBuffer), TEXT("%8u  (无函数名,按序号导入)\r\n"), (DWORD)IMAGE_ORDINAL32(thunk->u1.Ordinal));
 		}
 		else
 		{
@@ -40,7 +40,7 @@ static void DumpImportThunk64(PBYTE lpFile, DWORD thunkRva)
 	{
 		if (thunk->u1.Ordinal & IMAGE_ORDINAL_FLAG64)
 		{
-			StringCchPrintf(lineBuffer, ARRAYSIZE(lineBuffer), TEXT("%8u  (无函数名,按序号导入)\r\n"), IMAGE_ORDINAL64(thunk->u1.Ordinal));
+			StringCchPrintf(lineBuffer, ARRAYSIZE(lineBuffer), TEXT("%8u  (无函数名,按序号导入)\r\n"), (DWORD)IMAGE_ORDINAL64(thunk->u1.Ordinal));
 		}
 		else
 		{
