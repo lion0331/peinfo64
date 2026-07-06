@@ -23,7 +23,9 @@ BOOL WriteTextToDump(HANDLE hFile, const TCHAR* text)
 	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE || text == NULL)
 		return FALSE;
 
-	return WriteFile(hFile, text, lstrlen(text) * sizeof(TCHAR), &bytesWritten, NULL);
+	if (!WriteFile(hFile, text, lstrlen(text) * sizeof(TCHAR), &bytesWritten, NULL))
+		return FALSE;
+	return bytesWritten == (DWORD)(lstrlen(text) * sizeof(TCHAR));
 }
 
 void CopyAnsiToWide(const char* source, TCHAR* buffer, size_t bufferCount)
@@ -80,7 +82,7 @@ DWORD RVAToOffset(IMAGE_DOS_HEADER* lpFileHead, DWORD dwRVA)
 	if (dwRVA < ntHeader->OptionalHeader.SizeOfHeaders)
 		return dwRVA;
 
-	for (WORD index = 0; index < ntHeader->FileHeader.NumberOfSections; ++index, ++section)
+	for (DWORD index = 0; index < (DWORD)ntHeader->FileHeader.NumberOfSections; ++index, ++section)
 	{
 		DWORD sectionSize = section->Misc.VirtualSize;
 		if (sectionSize < section->SizeOfRawData)
@@ -110,7 +112,7 @@ IMAGE_SECTION_HEADER* GetRVASectionHeader(IMAGE_DOS_HEADER* lpFileHead, DWORD dw
 	ntHeader = (IMAGE_NT_HEADERS*)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
 	section = IMAGE_FIRST_SECTION(ntHeader);
 
-	for (WORD index = 0; index < ntHeader->FileHeader.NumberOfSections; ++index, ++section)
+	for (DWORD index = 0; index < (DWORD)ntHeader->FileHeader.NumberOfSections; ++index, ++section)
 	{
 		DWORD sectionSize = section->Misc.VirtualSize;
 		if (sectionSize < section->SizeOfRawData)

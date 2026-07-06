@@ -83,8 +83,7 @@ int WINAPI WinMain(_In_ HINSTANCE instance,
 	}
 	hInstance = instance;
 	DialogBoxParam(hInstance, MAKEINTRESOURCE(DLG_MAIN), NULL, (DLGPROC)DlgProc, 0);
-	if (hRichEdit)
-		FreeLibrary(hRichEdit);
+	FreeLibrary(hRichEdit);
 	return 0;
 }
 

@@ -11,6 +11,9 @@ extern HWND hWinMain;
 
 static void CopyResourceName(PBYTE resourceBase, DWORD nameOffset, TCHAR* buffer, size_t bufferCount)
 {
+	IMAGE_RESOURCE_DIR_STRING_U* resourceName;
+	DWORD copyCount;
+
 	if (!buffer || bufferCount == 0)
 		return;
 
@@ -19,8 +22,8 @@ static void CopyResourceName(PBYTE resourceBase, DWORD nameOffset, TCHAR* buffer
 	if (!resourceBase || nameOffset == 0)
 		return;
 
-	IMAGE_RESOURCE_DIR_STRING_U* resourceName = (IMAGE_RESOURCE_DIR_STRING_U*)(resourceBase + nameOffset);
-	DWORD copyCount = resourceName->Length;
+	resourceName = (IMAGE_RESOURCE_DIR_STRING_U*)(resourceBase + nameOffset);
+	copyCount = resourceName->Length;
 
 	if (copyCount >= bufferCount)
 		copyCount = (DWORD)bufferCount - 1;
@@ -43,10 +46,11 @@ static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY* lpRe
 		TEXT("未知类型"), TEXT("图标组"), TEXT("未知类型"), TEXT("版本信息")
 	};
 	DWORD number = (DWORD)lpResDir->NumberOfIdEntries + (DWORD)lpResDir->NumberOfNamedEntries;
+	IMAGE_RESOURCE_DIRECTORY_ENTRY* entry;
 	/* 限制单个目录中的条目数，防止恶意 PE 导致巨大循环 */
 	if (number > 5000)
 		number = 5000;
-	IMAGE_RESOURCE_DIRECTORY_ENTRY* entry = (IMAGE_RESOURCE_DIRECTORY_ENTRY*)((PBYTE)lpResDir + sizeof(IMAGE_RESOURCE_DIRECTORY));
+	entry = (IMAGE_RESOURCE_DIRECTORY_ENTRY*)((PBYTE)lpResDir + sizeof(IMAGE_RESOURCE_DIRECTORY));
 
 	for (DWORD index = 0; index < number; ++index, ++entry)
 	{
