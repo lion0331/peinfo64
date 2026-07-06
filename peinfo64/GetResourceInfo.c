@@ -47,7 +47,7 @@ static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY* lpRe
 	};
 	DWORD number = (DWORD)lpResDir->NumberOfIdEntries + (DWORD)lpResDir->NumberOfNamedEntries;
 	IMAGE_RESOURCE_DIRECTORY_ENTRY* entry;
-	/* 限制单个目录中的条目数，防止恶意 PE 导致巨大循环 */
+
 	if (number > 5000)
 		number = 5000;
 	entry = (IMAGE_RESOURCE_DIRECTORY_ENTRY*)((PBYTE)lpResDir + sizeof(IMAGE_RESOURCE_DIRECTORY));
