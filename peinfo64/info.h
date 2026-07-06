@@ -27,7 +27,7 @@ BOOL WriteTextToDump(HANDLE hFile, const TCHAR* text);
 void CopySectionName(const IMAGE_SECTION_HEADER* section, TCHAR* buffer, size_t bufferCount);
 void CopyAnsiToWide(const char* source, TCHAR* buffer, size_t bufferCount);
 BOOL IsPe64(const IMAGE_NT_HEADERS* ntHeader);
-PBYTE OffsetToPtr(PBYTE fileBase, DWORD fileOffset);
+PBYTE OffsetToPtr(PBYTE fileBase, DWORD_PTR fileOffset);
 
 void _getMainInfo(PBYTE, IMAGE_NT_HEADERS*, int);
 void _getImportInfo(PBYTE, IMAGE_NT_HEADERS*, int);
