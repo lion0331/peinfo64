@@ -289,7 +289,7 @@ void _readToRichEdit()
 	TCHAR* pContent;
 	LPCTSTR displayStart;
 
-	hFile = CreateFile(szDumpFileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	hFile = CreateFile(szDumpFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE)
 	{
 		MessageBox(hWinMain, szErrOpenFile, NULL, MB_OK | MB_ICONEXCLAMATION);

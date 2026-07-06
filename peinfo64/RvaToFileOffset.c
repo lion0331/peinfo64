@@ -30,6 +30,8 @@ BOOL WriteTextToDump(HANDLE hFile, const TCHAR* text)
 
 void CopyAnsiToWide(const char* source, TCHAR* buffer, size_t bufferCount)
 {
+	int result;
+
 	if (!buffer || bufferCount == 0)
 		return;
 
@@ -37,7 +39,7 @@ void CopyAnsiToWide(const char* source, TCHAR* buffer, size_t bufferCount)
 	if (!source)
 		return;
 
-	int result = MultiByteToWideChar(CP_ACP, 0, source, -1, buffer, (int)bufferCount);
+	result = MultiByteToWideChar(CP_ACP, 0, source, -1, buffer, (int)bufferCount);
 	if (result == 0)
 	{
 		buffer[0] = TEXT('\0');
