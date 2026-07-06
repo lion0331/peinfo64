@@ -17,14 +17,24 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 	TCHAR sectionName[32];
 	TCHAR dllName[256];
 	TCHAR functionName[256];
-	DWORD rva = IsPe64(_lpPeHead)
+	IMAGE_EXPORT_DIRECTORY* exportDirectory = NULL;
+	IMAGE_SECTION_HEADER* section = NULL;
+	DWORD* addressOfFunctions = NULL;
+	DWORD* addressOfNames = NULL;
+	WORD* addressOfNameOrdinals = NULL;
+	DWORD* ordinalToNameIndex = NULL;
+	DWORD functionCount;
+	DWORD nameCount;
+	DWORD rva;
+	DWORD exportOffset;
+	DWORD nameRvaOffset;
+	DWORD funcOffset;
+	DWORD namesOffset;
+	DWORD ordinalsOffset;
+
+	rva = IsPe64(_lpPeHead)
 		? ((IMAGE_NT_HEADERS64*)_lpPeHead)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress
 		: ((IMAGE_NT_HEADERS32*)_lpPeHead)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
-	IMAGE_EXPORT_DIRECTORY* exportDirectory;
-	IMAGE_SECTION_HEADER* section;
-	DWORD* addressOfFunctions;
-	DWORD* addressOfNames;
-	WORD* addressOfNameOrdinals;
 
 	if (!rva)
 	{
@@ -33,7 +43,10 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 		return;
 	}
 
-	exportDirectory = (IMAGE_EXPORT_DIRECTORY*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva));
+	exportOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva);
+	if (!exportOffset)
+		return;
+	exportDirectory = (IMAGE_EXPORT_DIRECTORY*)OffsetToPtr(lpFile, exportOffset);
 	if (!exportDirectory)
 		return;
 
@@ -41,7 +54,8 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 	CopySectionName(section, sectionName, ARRAYSIZE(sectionName));
 
 	{
-		PBYTE dllNamePtr = OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->Name));
+		DWORD dllNameOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->Name);
+		PBYTE dllNamePtr = dllNameOffset ? OffsetToPtr(lpFile, dllNameOffset) : NULL;
 		if (dllNamePtr)
 			CopyAnsiToWide((const char*)dllNamePtr, dllName, ARRAYSIZE(dllName));
 		else
@@ -75,41 +89,71 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 		exportDirectory->AddressOfNameOrdinals);
 	WriteTextToDump(hFileDump, buffer);
 
-	addressOfFunctions = (DWORD*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfFunctions));
-	addressOfNames = (DWORD*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfNames));
-	addressOfNameOrdinals = (WORD*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfNameOrdinals));
+	funcOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfFunctions);
+	namesOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfNames);
+	ordinalsOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfNameOrdinals);
+
+	addressOfFunctions = funcOffset ? (DWORD*)OffsetToPtr(lpFile, funcOffset) : NULL;
+	addressOfNames = namesOffset ? (DWORD*)OffsetToPtr(lpFile, namesOffset) : NULL;
+	addressOfNameOrdinals = ordinalsOffset ? (WORD*)OffsetToPtr(lpFile, ordinalsOffset) : NULL;
 
 	if (!addressOfFunctions || !addressOfNameOrdinals)
 		return;
 
+	functionCount = exportDirectory->NumberOfFunctions;
+	if (functionCount > EXPORT_FUNC_LIMIT)
+		functionCount = EXPORT_FUNC_LIMIT;
+
+	nameCount = exportDirectory->NumberOfNames;
+	if (nameCount > EXPORT_FUNC_LIMIT)
+		nameCount = EXPORT_FUNC_LIMIT;
+
+	/*
+	 * 构建序号→名称索引的 O(1) 反向查找表
+	 * 原实现为 O(n²) 双重循环，对于导出大量函数的 DLL (如 kernel32.dll)
+	 * 会导致严重性能问题。此处预先建立映射，将复杂度降至 O(n)。
+	 */
+	if (addressOfNames && addressOfNameOrdinals && nameCount > 0 && functionCount > 0)
 	{
-		DWORD functionCount = exportDirectory->NumberOfFunctions;
-		if (functionCount > 100000)
-			functionCount = 100000;
-
-		for (DWORD functionIndex = 0; functionIndex < functionCount; ++functionIndex)
+		ordinalToNameIndex = (DWORD*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, functionCount * sizeof(DWORD));
+		if (ordinalToNameIndex)
 		{
-			StringCchCopy(functionName, ARRAYSIZE(functionName), TEXT("(按照序号导出)"));
+			/* 初始化为无效值 (DWORD)-1 */
+			for (DWORD i = 0; i < functionCount; ++i)
+				ordinalToNameIndex[i] = (DWORD)-1;
 
-			if (addressOfNames)
+			for (DWORD nameIndex = 0; nameIndex < nameCount; ++nameIndex)
 			{
-				DWORD nameCount = exportDirectory->NumberOfNames;
-				if (nameCount > 100000)
-					nameCount = 100000;
-
-				for (DWORD nameIndex = 0; nameIndex < nameCount; ++nameIndex)
-				{
-					if (addressOfNameOrdinals[nameIndex] == functionIndex)
-					{
-						PBYTE funcNamePtr = OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, addressOfNames[nameIndex]));
-						if (funcNamePtr)
-							CopyAnsiToWide((const char*)funcNamePtr, functionName, ARRAYSIZE(functionName));
-						break;
-					}
-				}
+				DWORD ord = addressOfNameOrdinals[nameIndex];
+				if (ord < functionCount)
+					ordinalToNameIndex[ord] = nameIndex;
 			}
-			StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("\r\n%08X  %08X  %s\r\n"), exportDirectory->Base + functionIndex, addressOfFunctions[functionIndex], functionName);
-			WriteTextToDump(hFileDump, buffer);
 		}
 	}
+
+	for (DWORD functionIndex = 0; functionIndex < functionCount; ++functionIndex)
+	{
+		StringCchCopy(functionName, ARRAYSIZE(functionName), TEXT("(按照序号导出)"));
+
+		if (ordinalToNameIndex && ordinalToNameIndex[functionIndex] != (DWORD)-1)
+		{
+			DWORD nameIndex = ordinalToNameIndex[functionIndex];
+			nameRvaOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, addressOfNames[nameIndex]);
+			if (nameRvaOffset)
+			{
+				PBYTE funcNamePtr = OffsetToPtr(lpFile, nameRvaOffset);
+				if (funcNamePtr)
+					CopyAnsiToWide((const char*)funcNamePtr, functionName, ARRAYSIZE(functionName));
+			}
+		}
+
+		StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("\r\n%08X  %08X  %s\r\n"),
+			exportDirectory->Base + functionIndex,
+			addressOfFunctions[functionIndex],
+			functionName);
+		WriteTextToDump(hFileDump, buffer);
+	}
+
+	if (ordinalToNameIndex)
+		HeapFree(GetProcessHeap(), 0, ordinalToNameIndex);
 }

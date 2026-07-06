@@ -8,7 +8,7 @@
 extern HANDLE hFileDump;
 extern HWND hWinMain;
 
-void _getRelocInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
+void _getRelocInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 {
 	UNREFERENCED_PARAMETER(_dwSize);
 
@@ -21,8 +21,8 @@ void _getRelocInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
 	DWORD size = IsPe64(_lpPeHead)
 		? ((IMAGE_NT_HEADERS64*)_lpPeHead)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size
 		: ((IMAGE_NT_HEADERS32*)_lpPeHead)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size;
-	IMAGE_BASE_RELOCATION * reloc;
-	IMAGE_SECTION_HEADER * section;
+	IMAGE_BASE_RELOCATION* reloc;
+	IMAGE_SECTION_HEADER* section;
 	PBYTE relocEnd;
 
 	if (!rva)
@@ -32,23 +32,23 @@ void _getRelocInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
 		return;
 	}
 
-	reloc = (IMAGE_BASE_RELOCATION *)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER *)lpFile, rva));
+	reloc = (IMAGE_BASE_RELOCATION*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva));
 	if (!reloc)
 		return;
 
 	relocEnd = (PBYTE)reloc + size;
-	section = GetRVASectionHeader((IMAGE_DOS_HEADER *)lpFile, rva);
+	section = GetRVASectionHeader((IMAGE_DOS_HEADER*)lpFile, rva);
 	CopySectionName(section, sectionName, ARRAYSIZE(sectionName));
 
 	StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("\r\n重定位表所处的节：%s\r\n"), sectionName);
 	WriteTextToDump(hFileDump, buffer);
 
 	{
-		DWORD relocSafetyLimit = 10000;
+		DWORD relocSafetyLimit = RELOC_BLOCK_LIMIT;
 		while ((PBYTE)reloc < relocEnd && reloc->VirtualAddress && reloc->SizeOfBlock >= sizeof(IMAGE_BASE_RELOCATION) && relocSafetyLimit > 0)
 		{
 			--relocSafetyLimit;
-			WORD * entries = (WORD *)((PBYTE)reloc + sizeof(IMAGE_BASE_RELOCATION));
+			WORD* entries = (WORD*)((PBYTE)reloc + sizeof(IMAGE_BASE_RELOCATION));
 			DWORD entryCount = (reloc->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(WORD);
 
 			StringCchPrintf(buffer, ARRAYSIZE(buffer),
@@ -78,7 +78,7 @@ void _getRelocInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
 					WriteTextToDump(hFileDump, TEXT("\r\n"));
 			}
 			WriteTextToDump(hFileDump, TEXT("\r\n"));
-			reloc = (IMAGE_BASE_RELOCATION *)((PBYTE)reloc + reloc->SizeOfBlock);
+			reloc = (IMAGE_BASE_RELOCATION*)((PBYTE)reloc + reloc->SizeOfBlock);
 		}
 	}
 }

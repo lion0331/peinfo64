@@ -10,6 +10,12 @@
 #include <strsafe.h>	//StringCchCopy
 #include <stdlib.h>
 
+/* 安全限制常量 — 防止恶意/损坏 PE 文件导致无限循环 */
+#define IMPORT_THUNK_LIMIT     10000
+#define IMPORT_DESC_LIMIT      1000
+#define EXPORT_FUNC_LIMIT      100000
+#define RELOC_BLOCK_LIMIT      10000
+
 BOOL CALLBACK DlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void init();
 void _OpenFile();

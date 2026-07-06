@@ -4,10 +4,6 @@
 #include <windows.h>
 #include "info.h"
 
-extern HWND hWinEdit;
-
-const TCHAR szNotFound[] = TEXT("无法查找");
-
 BOOL IsPe64(const IMAGE_NT_HEADERS* ntHeader)
 {
 	return ntHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
@@ -42,12 +38,12 @@ void CopyAnsiToWide(const char* source, TCHAR* buffer, size_t bufferCount)
 	int result = MultiByteToWideChar(CP_ACP, 0, source, -1, buffer, (int)bufferCount);
 	if (result == 0)
 	{
-		// MultiByteToWideChar failed; ensure null termination
+		/* MultiByteToWideChar failed; ensure null termination */
 		buffer[0] = TEXT('\0');
 		return;
 	}
-	// If the buffer was too small, MultiByteToWideChar may have truncated
-	// without null terminator; ensure it is always terminated
+	/* If the buffer was too small, MultiByteToWideChar may have truncated
+	   without null terminator; ensure it is always terminated */
 	if ((size_t)result >= bufferCount)
 		buffer[bufferCount - 1] = TEXT('\0');
 }
@@ -91,7 +87,8 @@ DWORD RVAToOffset(IMAGE_DOS_HEADER* lpFileHead, DWORD dwRVA)
 			return section->PointerToRawData + (dwRVA - section->VirtualAddress);
 	}
 
-	MessageBox(hWinEdit, szNotFound, NULL, MB_OK);
+	/* 工具函数不应弹出 UI — 设置错误码让调用者决定如何处理 */
+	SetLastError(ERROR_NOT_FOUND);
 	return 0;
 }
 
@@ -116,6 +113,7 @@ IMAGE_SECTION_HEADER* GetRVASectionHeader(IMAGE_DOS_HEADER* lpFileHead, DWORD dw
 			return section;
 	}
 
-	MessageBox(hWinEdit, szNotFound, NULL, MB_OK);
+	/* 工具函数不应弹出 UI — 设置错误码让调用者决定如何处理 */
+	SetLastError(ERROR_NOT_FOUND);
 	return NULL;
 }

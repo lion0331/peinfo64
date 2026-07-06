@@ -7,12 +7,13 @@ PEInfo工具的实现
 #include "resource.h"
 #include "info.h"
 
+
 HINSTANCE hInstance;
 HWND hWinMain, hWinEdit;
 HMODULE hRichEdit;
 TCHAR szFileName[MAX_PATH];
 TCHAR szDumpFileName[MAX_PATH];
-HANDLE hFileDump;
+HANDLE hFileDump = NULL;
 
 static BOOL BuildDumpPath(const TCHAR* sourcePath, TCHAR* dumpPath, size_t dumpPathCount)
 {
@@ -143,6 +144,7 @@ BOOL CALLBACK DlgProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 
 int CALLBACK _Handler(EXCEPTION_POINTERS* lpExceptionPoint)
 {
+	/* 使用 static 缓冲区：异常处理器中堆栈可能已损坏，静态存储更安全 */
 	static TCHAR szBuffer[256];
 	TCHAR szAddress[32];
 	PCONTEXT pContext = lpExceptionPoint->ContextRecord;
@@ -169,6 +171,8 @@ void _OpenFile()
 	LARGE_INTEGER fileSize;
 	DWORD dumpBytesWritten = 0;
 	WORD unicodeFlag = 0xFEFF;
+	IMAGE_DOS_HEADER* lpstDOS = NULL;
+	IMAGE_NT_HEADERS* lpstNT = NULL;
 	const TCHAR szDefaultExt[] = TEXT("exe");
 	const TCHAR szFilter[] = TEXT("PE Files (*.exe)\0*.exe\0")
 		TEXT("DLL Files(*.dll)\0*.dll\0")
@@ -177,8 +181,6 @@ void _OpenFile()
 		TEXT("DRV Files(*.drv)\0*.drv\0")
 		TEXT("All Files(*.*)\0*.*\0\0");
 	const TCHAR szErrFormat[] = TEXT("操作文件时出现错误！");
-	IMAGE_DOS_HEADER* lpstDOS;
-	IMAGE_NT_HEADERS* lpstNT;
 
 	RtlZeroMemory(&stOF, sizeof(stOF));
 	RtlZeroMemory(szFileName, sizeof(szFileName));
@@ -208,7 +210,13 @@ void _OpenFile()
 		return;
 	}
 
-	WriteFile(hFileDump, &unicodeFlag, sizeof(unicodeFlag), &dumpBytesWritten, NULL);
+	if (!WriteFile(hFileDump, &unicodeFlag, sizeof(unicodeFlag), &dumpBytesWritten, NULL) || dumpBytesWritten != sizeof(unicodeFlag))
+	{
+		MessageBox(NULL, TEXT("写入输出文件BOM失败！"), NULL, MB_ICONWARNING);
+		CloseHandle(hFileDump);
+		hFileDump = NULL;
+		return;
+	}
 
 	hFile = CreateFile(szFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_ARCHIVE, NULL);
 	if (hFile == INVALID_HANDLE_VALUE)
@@ -233,6 +241,11 @@ void _OpenFile()
 
 	lpstDOS = (IMAGE_DOS_HEADER*)lpMemory;
 	if (lpstDOS->e_magic != IMAGE_DOS_SIGNATURE)
+		goto ErrorFormat;
+
+	/* 边界检查：e_lfanew 必须在文件范围内 */
+	if (lpstDOS->e_lfanew < sizeof(IMAGE_DOS_HEADER) ||
+		(LONGLONG)lpstDOS->e_lfanew + (LONGLONG)sizeof(IMAGE_NT_HEADERS) > fileSize.QuadPart)
 		goto ErrorFormat;
 
 	lpstNT = (IMAGE_NT_HEADERS*)(lpMemory + lpstDOS->e_lfanew);
@@ -272,6 +285,7 @@ void _readToRichEdit()
 	DWORD dwBytesRead = 0;
 	LARGE_INTEGER fileSize;
 	TCHAR* pContent;
+	LPCTSTR displayStart;
 
 	hFile = CreateFile(szDumpFileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (hFile == INVALID_HANDLE_VALUE)
@@ -301,10 +315,12 @@ void _readToRichEdit()
 	}
 
 	SetWindowText(hWinEdit, TEXT(""));
+	/* 使用字节偏移跳过 BOM，而非 TCHAR 指针偏移，确保 ANSI/Unicode 构建均正确 */
 	if (dwBytesRead >= sizeof(WORD) && *((WORD*)pContent) == 0xFEFF)
-		SetWindowText(hWinEdit, pContent + 1);
+		displayStart = (LPCTSTR)((PBYTE)pContent + sizeof(WORD));
 	else
-		SetWindowText(hWinEdit, pContent);
+		displayStart = pContent;
+	SetWindowText(hWinEdit, displayStart);
 
 	HeapFree(GetProcessHeap(), 0, pContent);
 	CloseHandle(hFile);

@@ -11,8 +11,14 @@ extern HWND hWinMain;
 static void DumpImportThunk32(PBYTE lpFile, DWORD thunkRva)
 {
 	TCHAR lineBuffer[256];
-	IMAGE_THUNK_DATA32* thunk = (IMAGE_THUNK_DATA32*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, thunkRva));
-	DWORD safetyLimit = 10000;
+	DWORD thunkOffset32;
+	IMAGE_THUNK_DATA32* thunk;
+
+	thunkOffset32 = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, thunkRva);
+	if (!thunkOffset32)
+		return;
+	thunk = (IMAGE_THUNK_DATA32*)OffsetToPtr(lpFile, thunkOffset32);
+	DWORD safetyLimit = IMPORT_THUNK_LIMIT;
 
 	if (!thunk)
 		return;
@@ -41,8 +47,14 @@ static void DumpImportThunk32(PBYTE lpFile, DWORD thunkRva)
 static void DumpImportThunk64(PBYTE lpFile, DWORD thunkRva)
 {
 	TCHAR lineBuffer[256];
-	IMAGE_THUNK_DATA64* thunk = (IMAGE_THUNK_DATA64*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, thunkRva));
-	DWORD safetyLimit = 10000;
+	DWORD thunkOffset64;
+	IMAGE_THUNK_DATA64* thunk;
+
+	thunkOffset64 = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, thunkRva);
+	if (!thunkOffset64)
+		return;
+	thunk = (IMAGE_THUNK_DATA64*)OffsetToPtr(lpFile, thunkOffset64);
+	DWORD safetyLimit = IMPORT_THUNK_LIMIT;
 
 	if (!thunk)
 		return;
@@ -95,7 +107,12 @@ void _getImportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 		return;
 	}
 
-	importDescriptor = (IMAGE_IMPORT_DESCRIPTOR*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva));
+	{
+		DWORD importOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva);
+		if (!importOffset)
+			return;
+		importDescriptor = (IMAGE_IMPORT_DESCRIPTOR*)OffsetToPtr(lpFile, importOffset);
+	}
 	if (!importDescriptor)
 		return;
 
@@ -111,11 +128,12 @@ void _getImportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 	WriteTextToDump(hFileDump, headerBuffer);
 
 	{
-		DWORD importSafetyLimit = 1000;
+		DWORD importSafetyLimit = IMPORT_DESC_LIMIT;
 		while ((importDescriptor->OriginalFirstThunk || importDescriptor->TimeDateStamp || importDescriptor->ForwarderChain || importDescriptor->Name || importDescriptor->FirstThunk) && importSafetyLimit > 0)
 		{
 			--importSafetyLimit;
-			PBYTE dllNamePtr = OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, importDescriptor->Name));
+			DWORD dllNameOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, importDescriptor->Name);
+			PBYTE dllNamePtr = dllNameOffset ? OffsetToPtr(lpFile, dllNameOffset) : NULL;
 			if (dllNamePtr)
 				CopyAnsiToWide((const char*)dllNamePtr, dllName, ARRAYSIZE(dllName));
 			else
