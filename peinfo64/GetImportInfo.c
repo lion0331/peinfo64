@@ -13,14 +13,15 @@ static void DumpImportThunk32(PBYTE lpFile, DWORD thunkRva)
 	TCHAR lineBuffer[256];
 	TCHAR functionName[256];
 	IMAGE_IMPORT_BY_NAME* importByName;
-	DWORD thunkOffset32;
 	IMAGE_THUNK_DATA32* thunk;
+	DWORD thunkOffset32;
+	DWORD safetyLimit;
 
 	thunkOffset32 = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, thunkRva);
 	if (!thunkOffset32)
 		return;
 	thunk = (IMAGE_THUNK_DATA32*)OffsetToPtr(lpFile, thunkOffset32);
-	DWORD safetyLimit = IMPORT_THUNK_LIMIT;
+	safetyLimit = IMPORT_THUNK_LIMIT;
 
 	if (!thunk)
 		return;
@@ -55,12 +56,13 @@ static void DumpImportThunk64(PBYTE lpFile, DWORD thunkRva)
 	IMAGE_IMPORT_BY_NAME* importByName;
 	DWORD thunkOffset64;
 	IMAGE_THUNK_DATA64* thunk;
+	DWORD safetyLimit;
 
 	thunkOffset64 = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, thunkRva);
 	if (!thunkOffset64)
 		return;
 	thunk = (IMAGE_THUNK_DATA64*)OffsetToPtr(lpFile, thunkOffset64);
-	DWORD safetyLimit = IMPORT_THUNK_LIMIT;
+	safetyLimit = IMPORT_THUNK_LIMIT;
 
 	if (!thunk)
 		return;

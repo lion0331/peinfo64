@@ -4,13 +4,13 @@
 #define INFO_H_
 
 #include <windows.h>
-#include <richedit.h>	
-#include <commctrl.h>	
+#include <richedit.h>
+#include <commctrl.h>
 #pragma comment(lib,"comctl32.lib")
-#include <strsafe.h>	//StringCchCopy
+#include <strsafe.h>
 #include <stdlib.h>
 
-
+/* 安全限制常量 — 防止恶意/损坏 PE 文件导致无限循环 */
 #define IMPORT_THUNK_LIMIT     10000
 #define IMPORT_DESC_LIMIT      1000
 #define EXPORT_FUNC_LIMIT      100000

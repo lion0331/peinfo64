@@ -43,6 +43,9 @@ static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY* lpRe
 		TEXT("未知类型"), TEXT("图标组"), TEXT("未知类型"), TEXT("版本信息")
 	};
 	DWORD number = (DWORD)lpResDir->NumberOfIdEntries + (DWORD)lpResDir->NumberOfNamedEntries;
+	/* 限制单个目录中的条目数，防止恶意 PE 导致巨大循环 */
+	if (number > 5000)
+		number = 5000;
 	IMAGE_RESOURCE_DIRECTORY_ENTRY* entry = (IMAGE_RESOURCE_DIRECTORY_ENTRY*)((PBYTE)lpResDir + sizeof(IMAGE_RESOURCE_DIRECTORY));
 
 	for (DWORD index = 0; index < number; ++index, ++entry)

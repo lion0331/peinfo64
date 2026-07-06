@@ -69,7 +69,7 @@ DWORD RVAToOffset(IMAGE_DOS_HEADER* lpFileHead, DWORD dwRVA)
 	if (!lpFileHead)
 		return 0;
 
-	if (lpFileHead->e_lfanew == 0 || lpFileHead->e_lfanew < sizeof(IMAGE_DOS_HEADER))
+	if (lpFileHead->e_lfanew < sizeof(IMAGE_DOS_HEADER))
 	{
 		SetLastError(ERROR_INVALID_DATA);
 		return 0;
@@ -102,7 +102,7 @@ IMAGE_SECTION_HEADER* GetRVASectionHeader(IMAGE_DOS_HEADER* lpFileHead, DWORD dw
 	if (!lpFileHead)
 		return NULL;
 
-	if (lpFileHead->e_lfanew == 0 || lpFileHead->e_lfanew < sizeof(IMAGE_DOS_HEADER))
+	if (lpFileHead->e_lfanew < sizeof(IMAGE_DOS_HEADER))
 	{
 		SetLastError(ERROR_INVALID_DATA);
 		return NULL;
