@@ -108,18 +108,11 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 	if (nameCount > EXPORT_FUNC_LIMIT)
 		nameCount = EXPORT_FUNC_LIMIT;
 
-	/*
-	 * 构建序号→名称索引的 O(1) 反向查找表
-	 * 原实现为 O(n²) 双重循环，对于导出大量函数的 DLL (如 kernel32.dll)
-	 * 会导致严重性能问题。此处预先建立映射，将复杂度降至 O(n)。
-	 */
 	if (addressOfNames && addressOfNameOrdinals && nameCount > 0 && functionCount > 0)
 	{
-		/* 使用普通 HeapAlloc 即可，紧随其后会显式初始化为 (DWORD)-1 */
 		ordinalToNameIndex = (DWORD*)HeapAlloc(GetProcessHeap(), 0, functionCount * sizeof(DWORD));
 		if (ordinalToNameIndex)
 		{
-			/* 初始化为无效值 (DWORD)-1 */
 			for (DWORD i = 0; i < functionCount; ++i)
 				ordinalToNameIndex[i] = (DWORD)-1;
 

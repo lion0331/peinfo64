@@ -38,12 +38,10 @@ void CopyAnsiToWide(const char* source, TCHAR* buffer, size_t bufferCount)
 	int result = MultiByteToWideChar(CP_ACP, 0, source, -1, buffer, (int)bufferCount);
 	if (result == 0)
 	{
-		/* MultiByteToWideChar failed; ensure null termination */
 		buffer[0] = TEXT('\0');
 		return;
 	}
-	/* If the buffer was too small, MultiByteToWideChar may have truncated
-	   without null terminator; ensure it is always terminated */
+
 	if ((size_t)result >= bufferCount)
 		buffer[bufferCount - 1] = TEXT('\0');
 }
@@ -71,7 +69,6 @@ DWORD RVAToOffset(IMAGE_DOS_HEADER* lpFileHead, DWORD dwRVA)
 	if (!lpFileHead)
 		return 0;
 
-	/* 防御性校验：e_lfanew 不应为 0 或超出合理范围 */
 	if (lpFileHead->e_lfanew == 0 || lpFileHead->e_lfanew < sizeof(IMAGE_DOS_HEADER))
 	{
 		SetLastError(ERROR_INVALID_DATA);
@@ -93,7 +90,6 @@ DWORD RVAToOffset(IMAGE_DOS_HEADER* lpFileHead, DWORD dwRVA)
 			return section->PointerToRawData + (dwRVA - section->VirtualAddress);
 	}
 
-	/* 工具函数不应弹出 UI — 设置错误码让调用者决定如何处理 */
 	SetLastError(ERROR_NOT_FOUND);
 	return 0;
 }
@@ -106,7 +102,6 @@ IMAGE_SECTION_HEADER* GetRVASectionHeader(IMAGE_DOS_HEADER* lpFileHead, DWORD dw
 	if (!lpFileHead)
 		return NULL;
 
-	/* 防御性校验：e_lfanew 不应为 0 或超出合理范围 */
 	if (lpFileHead->e_lfanew == 0 || lpFileHead->e_lfanew < sizeof(IMAGE_DOS_HEADER))
 	{
 		SetLastError(ERROR_INVALID_DATA);
@@ -125,7 +120,6 @@ IMAGE_SECTION_HEADER* GetRVASectionHeader(IMAGE_DOS_HEADER* lpFileHead, DWORD dw
 			return section;
 	}
 
-	/* 工具函数不应弹出 UI — 设置错误码让调用者决定如何处理 */
 	SetLastError(ERROR_NOT_FOUND);
 	return NULL;
 }

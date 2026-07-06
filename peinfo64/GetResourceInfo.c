@@ -19,8 +19,6 @@ static void CopyResourceName(PBYTE resourceBase, DWORD nameOffset, TCHAR* buffer
 	if (!resourceBase || nameOffset == 0)
 		return;
 
-	/* 注意：此处未传入资源段总大小，无法做完整边界检查。
-	   调用者应确保 nameOffset 是从已验证的 PE 资源目录条目中获得。 */
 	IMAGE_RESOURCE_DIR_STRING_U* resourceName = (IMAGE_RESOURCE_DIR_STRING_U*)(resourceBase + nameOffset);
 	DWORD copyCount = resourceName->Length;
 
@@ -33,7 +31,6 @@ static void CopyResourceName(PBYTE resourceBase, DWORD nameOffset, TCHAR* buffer
 
 static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY* lpResDir, DWORD dwLevel)
 {
-	/* 深度限制防止恶意 PE 导致栈溢出 */
 	if (dwLevel > 8)
 		return;
 
@@ -45,7 +42,6 @@ static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY* lpRe
 		TEXT("加速键"), TEXT("未格式化资源"), TEXT("消息表"), TEXT("光标组"),
 		TEXT("未知类型"), TEXT("图标组"), TEXT("未知类型"), TEXT("版本信息")
 	};
-	/* 使用 DWORD 避免 WORD 加法溢出 */
 	DWORD number = (DWORD)lpResDir->NumberOfIdEntries + (DWORD)lpResDir->NumberOfNamedEntries;
 	IMAGE_RESOURCE_DIRECTORY_ENTRY* entry = (IMAGE_RESOURCE_DIRECTORY_ENTRY*)((PBYTE)lpResDir + sizeof(IMAGE_RESOURCE_DIRECTORY));
 

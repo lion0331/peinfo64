@@ -149,7 +149,6 @@ BOOL CALLBACK DlgProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 
 int CALLBACK _Handler(EXCEPTION_POINTERS* lpExceptionPoint)
 {
-	/* 使用 static 缓冲区：异常处理器中堆栈可能已损坏，静态存储更安全 */
 	static TCHAR szBuffer[256];
 	TCHAR szAddress[32];
 	PCONTEXT pContext = lpExceptionPoint->ContextRecord;
@@ -248,7 +247,6 @@ void _OpenFile()
 	if (lpstDOS->e_magic != IMAGE_DOS_SIGNATURE)
 		goto ErrorFormat;
 
-	/* 边界检查：e_lfanew 必须在文件范围内 */
 	if (lpstDOS->e_lfanew < sizeof(IMAGE_DOS_HEADER) ||
 		(LONGLONG)lpstDOS->e_lfanew + (LONGLONG)sizeof(IMAGE_NT_HEADERS) > fileSize.QuadPart)
 		goto ErrorFormat;
@@ -320,7 +318,7 @@ void _readToRichEdit()
 	}
 
 	SetWindowText(hWinEdit, TEXT(""));
-	/* 使用字节偏移跳过 BOM，而非 TCHAR 指针偏移，确保 ANSI/Unicode 构建均正确 */
+
 	if (dwBytesRead >= sizeof(WORD) && *((WORD*)pContent) == 0xFEFF)
 		displayStart = (LPCTSTR)((PBYTE)pContent + sizeof(WORD));
 	else
