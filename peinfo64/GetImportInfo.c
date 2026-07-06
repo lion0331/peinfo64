@@ -11,6 +11,8 @@ extern HWND hWinMain;
 static void DumpImportThunk32(PBYTE lpFile, DWORD thunkRva)
 {
 	TCHAR lineBuffer[256];
+	TCHAR functionName[256];
+	IMAGE_IMPORT_BY_NAME* importByName;
 	DWORD thunkOffset32;
 	IMAGE_THUNK_DATA32* thunk;
 
@@ -32,10 +34,12 @@ static void DumpImportThunk32(PBYTE lpFile, DWORD thunkRva)
 		}
 		else
 		{
-			IMAGE_IMPORT_BY_NAME* importByName = (IMAGE_IMPORT_BY_NAME*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, thunk->u1.AddressOfData));
+			DWORD nameOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, thunk->u1.AddressOfData);
+			if (!nameOffset)
+				break;
+			importByName = (IMAGE_IMPORT_BY_NAME*)OffsetToPtr(lpFile, nameOffset);
 			if (!importByName)
 				break;
-			TCHAR functionName[256];
 			CopyAnsiToWide((const char*)importByName->Name, functionName, ARRAYSIZE(functionName));
 			StringCchPrintf(lineBuffer, ARRAYSIZE(lineBuffer), TEXT("%-8u  %s\r\n"), importByName->Hint, functionName);
 		}
@@ -47,6 +51,8 @@ static void DumpImportThunk32(PBYTE lpFile, DWORD thunkRva)
 static void DumpImportThunk64(PBYTE lpFile, DWORD thunkRva)
 {
 	TCHAR lineBuffer[256];
+	TCHAR functionName[256];
+	IMAGE_IMPORT_BY_NAME* importByName;
 	DWORD thunkOffset64;
 	IMAGE_THUNK_DATA64* thunk;
 
@@ -69,16 +75,19 @@ static void DumpImportThunk64(PBYTE lpFile, DWORD thunkRva)
 		else
 		{
 			DWORD nameRva;
-			IMAGE_IMPORT_BY_NAME* importByName;
 
 			if (thunk->u1.AddressOfData > MAXDWORD)
 				break;
 
 			nameRva = (DWORD)thunk->u1.AddressOfData;
-			importByName = (IMAGE_IMPORT_BY_NAME*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, nameRva));
+			{
+				DWORD nameOffset64 = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, nameRva);
+				if (!nameOffset64)
+					break;
+				importByName = (IMAGE_IMPORT_BY_NAME*)OffsetToPtr(lpFile, nameOffset64);
+			}
 			if (!importByName)
 				break;
-			TCHAR functionName[256];
 			CopyAnsiToWide((const char*)importByName->Name, functionName, ARRAYSIZE(functionName));
 			StringCchPrintf(lineBuffer, ARRAYSIZE(lineBuffer), TEXT("%-8u  %s\r\n"), importByName->Hint, functionName);
 		}

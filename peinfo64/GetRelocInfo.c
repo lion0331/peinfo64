@@ -32,10 +32,18 @@ void _getRelocInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 		return;
 	}
 
-	reloc = (IMAGE_BASE_RELOCATION*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva));
+	{
+		DWORD relocRvaOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva);
+		if (!relocRvaOffset)
+			return;
+		reloc = (IMAGE_BASE_RELOCATION*)OffsetToPtr(lpFile, relocRvaOffset);
+	}
 	if (!reloc)
 		return;
 
+	/* 限制 size 避免 relocEnd 计算溢出 */
+	if (size > MAXDWORD - sizeof(IMAGE_BASE_RELOCATION))
+		size = MAXDWORD - sizeof(IMAGE_BASE_RELOCATION);
 	relocEnd = (PBYTE)reloc + size;
 	section = GetRVASectionHeader((IMAGE_DOS_HEADER*)lpFile, rva);
 	CopySectionName(section, sectionName, ARRAYSIZE(sectionName));
@@ -50,6 +58,9 @@ void _getRelocInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 			--relocSafetyLimit;
 			WORD* entries = (WORD*)((PBYTE)reloc + sizeof(IMAGE_BASE_RELOCATION));
 			DWORD entryCount = (reloc->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(WORD);
+			/* 限制单个块中的条目数，防止恶意 PE 导致巨大循环 */
+			if (entryCount > 10000)
+				entryCount = 10000;
 
 			StringCchPrintf(buffer, ARRAYSIZE(buffer),
 				TEXT("\r\n---------------------------------------------------------\r\n")
@@ -78,7 +89,13 @@ void _getRelocInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 					WriteTextToDump(hFileDump, TEXT("\r\n"));
 			}
 			WriteTextToDump(hFileDump, TEXT("\r\n"));
-			reloc = (IMAGE_BASE_RELOCATION*)((PBYTE)reloc + reloc->SizeOfBlock);
+			/* SizeOfBlock 必须大于 sizeof(IMAGE_BASE_RELOCATION) 才能前进，且需要防溢出 */
+			{
+				DWORD blockSize = reloc->SizeOfBlock;
+				if (blockSize < sizeof(IMAGE_BASE_RELOCATION))
+					break;
+				reloc = (IMAGE_BASE_RELOCATION*)((PBYTE)reloc + blockSize);
+			}
 		}
 	}
 }

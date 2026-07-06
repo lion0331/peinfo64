@@ -33,6 +33,10 @@ static void CopyResourceName(PBYTE resourceBase, DWORD nameOffset, TCHAR* buffer
 
 static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY* lpResDir, DWORD dwLevel)
 {
+	/* 深度限制防止恶意 PE 导致栈溢出 */
+	if (dwLevel > 8)
+		return;
+
 	TCHAR buffer[256];
 	TCHAR resName[256];
 	const TCHAR szType[][16] = {
@@ -87,7 +91,10 @@ static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY* lpRe
 		{
 			IMAGE_RESOURCE_DATA_ENTRY* dataEntry = (IMAGE_RESOURCE_DATA_ENTRY*)(lpRes + entry->OffsetToData);
 			DWORD address = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, dataEntry->OffsetToData);
-			StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("     文件偏移：%08X (代码页=%04X, 长度%u字节)\r\n"), address, dataEntry->CodePage, dataEntry->Size);
+			if (address)
+				StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("     文件偏移：%08X (代码页=%04X, 长度%u字节)\r\n"), address, dataEntry->CodePage, dataEntry->Size);
+			else
+				StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("     文件偏移：无法解析 (代码页=%04X, 长度%u字节)\r\n"), dataEntry->CodePage, dataEntry->Size);
 			WriteTextToDump(hFileDump, buffer);
 		}
 	}
@@ -112,7 +119,12 @@ void _getResourceInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 		return;
 	}
 
-	resourceDir = (IMAGE_RESOURCE_DIRECTORY*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva));
+	{
+		DWORD resRvaOffset = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva);
+		if (!resRvaOffset)
+			return;
+		resourceDir = (IMAGE_RESOURCE_DIRECTORY*)OffsetToPtr(lpFile, resRvaOffset);
+	}
 	if (!resourceDir)
 		return;
 
