@@ -9,9 +9,17 @@ extern TCHAR szFileName[MAX_PATH];
 extern HANDLE hFileDump;
 extern HWND hWinMain;
 
-static void CopyResourceName(PBYTE resourceBase, DWORD nameOffset, TCHAR * buffer, size_t bufferCount)
+static void CopyResourceName(PBYTE resourceBase, DWORD nameOffset, TCHAR* buffer, size_t bufferCount)
 {
-	IMAGE_RESOURCE_DIR_STRING_U * resourceName = (IMAGE_RESOURCE_DIR_STRING_U *)(resourceBase + nameOffset);
+	if (!buffer || bufferCount == 0)
+		return;
+
+	buffer[0] = TEXT('\0');
+
+	if (!resourceBase || nameOffset == 0)
+		return;
+
+	IMAGE_RESOURCE_DIR_STRING_U* resourceName = (IMAGE_RESOURCE_DIR_STRING_U*)(resourceBase + nameOffset);
 	DWORD copyCount = resourceName->Length;
 
 	if (copyCount >= bufferCount)
@@ -21,7 +29,7 @@ static void CopyResourceName(PBYTE resourceBase, DWORD nameOffset, TCHAR * buffe
 	buffer[copyCount] = TEXT('\0');
 }
 
-static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY * lpResDir, DWORD dwLevel)
+static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY* lpResDir, DWORD dwLevel)
 {
 	TCHAR buffer[256];
 	TCHAR resName[256];
@@ -32,13 +40,13 @@ static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY * lpR
 		TEXT("未知类型"), TEXT("图标组"), TEXT("未知类型"), TEXT("版本信息")
 	};
 	WORD number = lpResDir->NumberOfIdEntries + lpResDir->NumberOfNamedEntries;
-	IMAGE_RESOURCE_DIRECTORY_ENTRY * entry = (IMAGE_RESOURCE_DIRECTORY_ENTRY *)((PBYTE)lpResDir + sizeof(IMAGE_RESOURCE_DIRECTORY));
+	IMAGE_RESOURCE_DIRECTORY_ENTRY* entry = (IMAGE_RESOURCE_DIRECTORY_ENTRY*)((PBYTE)lpResDir + sizeof(IMAGE_RESOURCE_DIRECTORY));
 
 	for (WORD index = 0; index < number; ++index, ++entry)
 	{
 		if (entry->OffsetToData & IMAGE_RESOURCE_DATA_IS_DIRECTORY)
 		{
-			IMAGE_RESOURCE_DIRECTORY * childDir = (IMAGE_RESOURCE_DIRECTORY *)(lpRes + (entry->OffsetToData & ~IMAGE_RESOURCE_DATA_IS_DIRECTORY));
+			IMAGE_RESOURCE_DIRECTORY* childDir = (IMAGE_RESOURCE_DIRECTORY*)(lpRes + (entry->OffsetToData & ~IMAGE_RESOURCE_DATA_IS_DIRECTORY));
 
 			if (dwLevel == 1)
 			{
@@ -74,15 +82,15 @@ static void ProcessRes(PBYTE lpFile, PBYTE lpRes, IMAGE_RESOURCE_DIRECTORY * lpR
 		}
 		else
 		{
-			IMAGE_RESOURCE_DATA_ENTRY * dataEntry = (IMAGE_RESOURCE_DATA_ENTRY *)(lpRes + entry->OffsetToData);
-			DWORD address = RVAToOffset((IMAGE_DOS_HEADER *)lpFile, dataEntry->OffsetToData);
+			IMAGE_RESOURCE_DATA_ENTRY* dataEntry = (IMAGE_RESOURCE_DATA_ENTRY*)(lpRes + entry->OffsetToData);
+			DWORD address = RVAToOffset((IMAGE_DOS_HEADER*)lpFile, dataEntry->OffsetToData);
 			StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("     文件偏移：%08X (代码页=%04X, 长度%u字节)\r\n"), address, dataEntry->CodePage, dataEntry->Size);
 			WriteTextToDump(hFileDump, buffer);
 		}
 	}
 }
 
-void _getResourceInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
+void _getResourceInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 {
 	UNREFERENCED_PARAMETER(_dwSize);
 
@@ -91,8 +99,8 @@ void _getResourceInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
 	DWORD rva = IsPe64(_lpPeHead)
 		? ((IMAGE_NT_HEADERS64*)_lpPeHead)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress
 		: ((IMAGE_NT_HEADERS32*)_lpPeHead)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress;
-	IMAGE_RESOURCE_DIRECTORY * resourceDir;
-	IMAGE_SECTION_HEADER * section;
+	IMAGE_RESOURCE_DIRECTORY* resourceDir;
+	IMAGE_SECTION_HEADER* section;
 
 	if (!rva)
 	{
@@ -101,8 +109,11 @@ void _getResourceInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
 		return;
 	}
 
-	resourceDir = (IMAGE_RESOURCE_DIRECTORY *)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER *)lpFile, rva));
-	section = GetRVASectionHeader((IMAGE_DOS_HEADER *)lpFile, rva);
+	resourceDir = (IMAGE_RESOURCE_DIRECTORY*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva));
+	if (!resourceDir)
+		return;
+
+	section = GetRVASectionHeader((IMAGE_DOS_HEADER*)lpFile, rva);
 	CopySectionName(section, sectionName, ARRAYSIZE(sectionName));
 
 	StringCchPrintf(buffer, ARRAYSIZE(buffer),

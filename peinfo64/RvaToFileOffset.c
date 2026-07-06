@@ -8,7 +8,7 @@ extern HWND hWinEdit;
 
 const TCHAR szNotFound[] = TEXT("无法查找");
 
-BOOL IsPe64(const IMAGE_NT_HEADERS * ntHeader)
+BOOL IsPe64(const IMAGE_NT_HEADERS* ntHeader)
 {
 	return ntHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
 }
@@ -20,7 +20,7 @@ PBYTE OffsetToPtr(PBYTE fileBase, DWORD fileOffset)
 	return fileBase + fileOffset;
 }
 
-BOOL WriteTextToDump(HANDLE hFile, const TCHAR * text)
+BOOL WriteTextToDump(HANDLE hFile, const TCHAR* text)
 {
 	DWORD bytesWritten = 0;
 
@@ -30,7 +30,7 @@ BOOL WriteTextToDump(HANDLE hFile, const TCHAR * text)
 	return WriteFile(hFile, text, lstrlen(text) * sizeof(TCHAR), &bytesWritten, NULL);
 }
 
-void CopyAnsiToWide(const char * source, TCHAR * buffer, size_t bufferCount)
+void CopyAnsiToWide(const char* source, TCHAR* buffer, size_t bufferCount)
 {
 	if (!buffer || bufferCount == 0)
 		return;
@@ -39,10 +39,20 @@ void CopyAnsiToWide(const char * source, TCHAR * buffer, size_t bufferCount)
 	if (!source)
 		return;
 
-	MultiByteToWideChar(CP_ACP, 0, source, -1, buffer, (int)bufferCount);
+	int result = MultiByteToWideChar(CP_ACP, 0, source, -1, buffer, (int)bufferCount);
+	if (result == 0)
+	{
+		// MultiByteToWideChar failed; ensure null termination
+		buffer[0] = TEXT('\0');
+		return;
+	}
+	// If the buffer was too small, MultiByteToWideChar may have truncated
+	// without null terminator; ensure it is always terminated
+	if ((size_t)result >= bufferCount)
+		buffer[bufferCount - 1] = TEXT('\0');
 }
 
-void CopySectionName(const IMAGE_SECTION_HEADER * section, TCHAR * buffer, size_t bufferCount)
+void CopySectionName(const IMAGE_SECTION_HEADER* section, TCHAR* buffer, size_t bufferCount)
 {
 	char ansiName[IMAGE_SIZEOF_SHORT_NAME + 1] = { 0 };
 
@@ -57,12 +67,15 @@ void CopySectionName(const IMAGE_SECTION_HEADER * section, TCHAR * buffer, size_
 	CopyAnsiToWide(ansiName, buffer, bufferCount);
 }
 
-DWORD RVAToOffset(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA)
+DWORD RVAToOffset(IMAGE_DOS_HEADER* lpFileHead, DWORD dwRVA)
 {
-	IMAGE_NT_HEADERS * ntHeader;
-	IMAGE_SECTION_HEADER * section;
+	IMAGE_NT_HEADERS* ntHeader;
+	IMAGE_SECTION_HEADER* section;
 
-	ntHeader = (IMAGE_NT_HEADERS *)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
+	if (!lpFileHead)
+		return 0;
+
+	ntHeader = (IMAGE_NT_HEADERS*)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
 	section = IMAGE_FIRST_SECTION(ntHeader);
 
 	if (dwRVA < ntHeader->OptionalHeader.SizeOfHeaders)
@@ -82,12 +95,15 @@ DWORD RVAToOffset(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA)
 	return 0;
 }
 
-IMAGE_SECTION_HEADER * GetRVASectionHeader(IMAGE_DOS_HEADER * lpFileHead, DWORD dwRVA)
+IMAGE_SECTION_HEADER* GetRVASectionHeader(IMAGE_DOS_HEADER* lpFileHead, DWORD dwRVA)
 {
-	IMAGE_NT_HEADERS * ntHeader;
-	IMAGE_SECTION_HEADER * section;
+	IMAGE_NT_HEADERS* ntHeader;
+	IMAGE_SECTION_HEADER* section;
 
-	ntHeader = (IMAGE_NT_HEADERS *)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
+	if (!lpFileHead)
+		return NULL;
+
+	ntHeader = (IMAGE_NT_HEADERS*)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
 	section = IMAGE_FIRST_SECTION(ntHeader);
 
 	for (WORD index = 0; index < ntHeader->FileHeader.NumberOfSections; ++index, ++section)

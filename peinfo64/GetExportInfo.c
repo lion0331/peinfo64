@@ -9,7 +9,7 @@ extern TCHAR szFileName[MAX_PATH];
 extern HANDLE hFileDump;
 extern HWND hWinMain;
 
-void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
+void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 {
 	UNREFERENCED_PARAMETER(_dwSize);
 
@@ -20,11 +20,11 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
 	DWORD rva = IsPe64(_lpPeHead)
 		? ((IMAGE_NT_HEADERS64*)_lpPeHead)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress
 		: ((IMAGE_NT_HEADERS32*)_lpPeHead)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
-	IMAGE_EXPORT_DIRECTORY * exportDirectory;
-	IMAGE_SECTION_HEADER * section;
-	DWORD * addressOfFunctions;
-	DWORD * addressOfNames;
-	WORD * addressOfNameOrdinals;
+	IMAGE_EXPORT_DIRECTORY* exportDirectory;
+	IMAGE_SECTION_HEADER* section;
+	DWORD* addressOfFunctions;
+	DWORD* addressOfNames;
+	WORD* addressOfNameOrdinals;
 
 	if (!rva)
 	{
@@ -33,10 +33,20 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
 		return;
 	}
 
-	exportDirectory = (IMAGE_EXPORT_DIRECTORY *)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER *)lpFile, rva));
-	section = GetRVASectionHeader((IMAGE_DOS_HEADER *)lpFile, rva);
+	exportDirectory = (IMAGE_EXPORT_DIRECTORY*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, rva));
+	if (!exportDirectory)
+		return;
+
+	section = GetRVASectionHeader((IMAGE_DOS_HEADER*)lpFile, rva);
 	CopySectionName(section, sectionName, ARRAYSIZE(sectionName));
-	CopyAnsiToWide((const char*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER *)lpFile, exportDirectory->Name)), dllName, ARRAYSIZE(dllName));
+
+	{
+		PBYTE dllNamePtr = OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->Name));
+		if (dllNamePtr)
+			CopyAnsiToWide((const char*)dllNamePtr, dllName, ARRAYSIZE(dllName));
+		else
+			StringCchCopy(dllName, ARRAYSIZE(dllName), TEXT("(无法读取)"));
+	}
 
 	StringCchPrintf(buffer, ARRAYSIZE(buffer),
 		TEXT("\r\n\r\n\r\n\r\n")
@@ -65,23 +75,41 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS * _lpPeHead, int _dwSize)
 		exportDirectory->AddressOfNameOrdinals);
 	WriteTextToDump(hFileDump, buffer);
 
-	addressOfFunctions = (DWORD *)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER *)lpFile, exportDirectory->AddressOfFunctions));
-	addressOfNames = (DWORD *)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER *)lpFile, exportDirectory->AddressOfNames));
-	addressOfNameOrdinals = (WORD *)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER *)lpFile, exportDirectory->AddressOfNameOrdinals));
+	addressOfFunctions = (DWORD*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfFunctions));
+	addressOfNames = (DWORD*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfNames));
+	addressOfNameOrdinals = (WORD*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, exportDirectory->AddressOfNameOrdinals));
 
-	for (DWORD functionIndex = 0; functionIndex < exportDirectory->NumberOfFunctions; ++functionIndex)
+	if (!addressOfFunctions || !addressOfNameOrdinals)
+		return;
+
 	{
-		StringCchCopy(functionName, ARRAYSIZE(functionName), TEXT("(按照序号导出)"));
+		DWORD functionCount = exportDirectory->NumberOfFunctions;
+		if (functionCount > 100000)
+			functionCount = 100000;
 
-		for (DWORD nameIndex = 0; nameIndex < exportDirectory->NumberOfNames; ++nameIndex)
+		for (DWORD functionIndex = 0; functionIndex < functionCount; ++functionIndex)
 		{
-			if (addressOfNameOrdinals[nameIndex] == functionIndex)
+			StringCchCopy(functionName, ARRAYSIZE(functionName), TEXT("(按照序号导出)"));
+
+			if (addressOfNames)
 			{
-				CopyAnsiToWide((const char*)OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER *)lpFile, addressOfNames[nameIndex])), functionName, ARRAYSIZE(functionName));
-				break;
+				DWORD nameCount = exportDirectory->NumberOfNames;
+				if (nameCount > 100000)
+					nameCount = 100000;
+
+				for (DWORD nameIndex = 0; nameIndex < nameCount; ++nameIndex)
+				{
+					if (addressOfNameOrdinals[nameIndex] == functionIndex)
+					{
+						PBYTE funcNamePtr = OffsetToPtr(lpFile, RVAToOffset((IMAGE_DOS_HEADER*)lpFile, addressOfNames[nameIndex]));
+						if (funcNamePtr)
+							CopyAnsiToWide((const char*)funcNamePtr, functionName, ARRAYSIZE(functionName));
+						break;
+					}
+				}
 			}
+			StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("\r\n%08X  %08X  %s\r\n"), exportDirectory->Base + functionIndex, addressOfFunctions[functionIndex], functionName);
+			WriteTextToDump(hFileDump, buffer);
 		}
-		StringCchPrintf(buffer, ARRAYSIZE(buffer), TEXT("\r\n%08X  %08X  %s\r\n"), exportDirectory->Base + functionIndex, addressOfFunctions[functionIndex], functionName);
-		WriteTextToDump(hFileDump, buffer);
 	}
 }

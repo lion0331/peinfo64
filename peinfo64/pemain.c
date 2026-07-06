@@ -14,9 +14,9 @@ TCHAR szFileName[MAX_PATH];
 TCHAR szDumpFileName[MAX_PATH];
 HANDLE hFileDump;
 
-static BOOL BuildDumpPath(const TCHAR * sourcePath, TCHAR * dumpPath, size_t dumpPathCount)
+static BOOL BuildDumpPath(const TCHAR* sourcePath, TCHAR* dumpPath, size_t dumpPathCount)
 {
-	TCHAR * fileNamePart = NULL;
+	TCHAR* fileNamePart = NULL;
 
 	if (!sourcePath || !dumpPath || dumpPathCount == 0)
 		return FALSE;
@@ -24,7 +24,7 @@ static BOOL BuildDumpPath(const TCHAR * sourcePath, TCHAR * dumpPath, size_t dum
 	if (FAILED(StringCchCopy(dumpPath, dumpPathCount, sourcePath)))
 		return FALSE;
 
-	for (TCHAR * current = dumpPath; *current; ++current)
+	for (TCHAR* current = dumpPath; *current; ++current)
 	{
 		if (*current == TEXT('\\') || *current == TEXT('/'))
 			fileNamePart = current + 1;
@@ -43,7 +43,7 @@ void ShowErrMsg()
 	LPVOID lpMsgBuf = NULL;
 	DWORD dw = GetLastError();
 
-	FormatMessage(
+	DWORD result = FormatMessage(
 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
 		NULL,
 		dw,
@@ -52,8 +52,17 @@ void ShowErrMsg()
 		0,
 		NULL);
 
-	MessageBox(NULL, (LPCTSTR)lpMsgBuf, TEXT("系统错误"), MB_OK | MB_ICONSTOP);
-	LocalFree(lpMsgBuf);
+	if (result && lpMsgBuf)
+	{
+		MessageBox(NULL, (LPCTSTR)lpMsgBuf, TEXT("系统错误"), MB_OK | MB_ICONSTOP);
+		LocalFree(lpMsgBuf);
+	}
+	else
+	{
+		TCHAR fallbackMsg[64];
+		StringCchPrintf(fallbackMsg, ARRAYSIZE(fallbackMsg), TEXT("发生未知错误，错误代码：%lu"), dw);
+		MessageBox(NULL, fallbackMsg, TEXT("系统错误"), MB_OK | MB_ICONSTOP);
+	}
 }
 
 int WINAPI WinMain(_In_ HINSTANCE instance,
@@ -132,7 +141,7 @@ BOOL CALLBACK DlgProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
-int CALLBACK _Handler(EXCEPTION_POINTERS * lpExceptionPoint)
+int CALLBACK _Handler(EXCEPTION_POINTERS* lpExceptionPoint)
 {
 	static TCHAR szBuffer[256];
 	TCHAR szAddress[32];
@@ -168,8 +177,8 @@ void _OpenFile()
 		TEXT("DRV Files(*.drv)\0*.drv\0")
 		TEXT("All Files(*.*)\0*.*\0\0");
 	const TCHAR szErrFormat[] = TEXT("操作文件时出现错误！");
-	IMAGE_DOS_HEADER * lpstDOS;
-	IMAGE_NT_HEADERS * lpstNT;
+	IMAGE_DOS_HEADER* lpstDOS;
+	IMAGE_NT_HEADERS* lpstNT;
 
 	RtlZeroMemory(&stOF, sizeof(stOF));
 	RtlZeroMemory(szFileName, sizeof(szFileName));
@@ -222,11 +231,11 @@ void _OpenFile()
 	if (!lpMemory)
 		goto ErrorFormat;
 
-	lpstDOS = (IMAGE_DOS_HEADER *)lpMemory;
+	lpstDOS = (IMAGE_DOS_HEADER*)lpMemory;
 	if (lpstDOS->e_magic != IMAGE_DOS_SIGNATURE)
 		goto ErrorFormat;
 
-	lpstNT = (IMAGE_NT_HEADERS *)(lpMemory + lpstDOS->e_lfanew);
+	lpstNT = (IMAGE_NT_HEADERS*)(lpMemory + lpstDOS->e_lfanew);
 	if (lpstNT->Signature != IMAGE_NT_SIGNATURE)
 		goto ErrorFormat;
 
@@ -262,7 +271,7 @@ void _readToRichEdit()
 	HANDLE hFile;
 	DWORD dwBytesRead = 0;
 	LARGE_INTEGER fileSize;
-	TCHAR * pContent;
+	TCHAR* pContent;
 
 	hFile = CreateFile(szDumpFileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (hFile == INVALID_HANDLE_VALUE)
