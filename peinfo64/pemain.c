@@ -76,6 +76,11 @@ int WINAPI WinMain(_In_ HINSTANCE instance,
 	UNREFERENCED_PARAMETER(nShowCmd);
 
 	hRichEdit = LoadLibrary(TEXT("RichEd20.dll"));
+	if (!hRichEdit)
+	{
+		MessageBox(NULL, TEXT("无法加载 RichEd20.dll，程序无法运行！"), TEXT("致命错误"), MB_OK | MB_ICONSTOP);
+		return 1;
+	}
 	hInstance = instance;
 	DialogBoxParam(hInstance, MAKEINTRESOURCE(DLG_MAIN), NULL, (DLGPROC)DlgProc, 0);
 	if (hRichEdit)
@@ -107,8 +112,8 @@ BOOL CALLBACK DlgProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
 
-	const TCHAR szErr[] = TEXT("文件格式错误！");
-	const TCHAR szErrFormat[] = TEXT("这个文件不是PE格式的文件!");
+	static const TCHAR szErr[] = TEXT("文件格式错误！");
+	static const TCHAR szErrFormat[] = TEXT("这个文件不是PE格式的文件!");
 
 	switch (wMsg)
 	{

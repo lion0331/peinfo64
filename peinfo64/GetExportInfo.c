@@ -115,7 +115,8 @@ void _getExportInfo(PBYTE lpFile, IMAGE_NT_HEADERS* _lpPeHead, int _dwSize)
 	 */
 	if (addressOfNames && addressOfNameOrdinals && nameCount > 0 && functionCount > 0)
 	{
-		ordinalToNameIndex = (DWORD*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, functionCount * sizeof(DWORD));
+		/* 使用普通 HeapAlloc 即可，紧随其后会显式初始化为 (DWORD)-1 */
+		ordinalToNameIndex = (DWORD*)HeapAlloc(GetProcessHeap(), 0, functionCount * sizeof(DWORD));
 		if (ordinalToNameIndex)
 		{
 			/* 初始化为无效值 (DWORD)-1 */

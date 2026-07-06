@@ -71,6 +71,12 @@ DWORD RVAToOffset(IMAGE_DOS_HEADER* lpFileHead, DWORD dwRVA)
 	if (!lpFileHead)
 		return 0;
 
+	/* 防御性校验：e_lfanew 不应为 0 或超出合理范围 */
+	if (lpFileHead->e_lfanew == 0 || lpFileHead->e_lfanew < sizeof(IMAGE_DOS_HEADER))
+	{
+		SetLastError(ERROR_INVALID_DATA);
+		return 0;
+	}
 	ntHeader = (IMAGE_NT_HEADERS*)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
 	section = IMAGE_FIRST_SECTION(ntHeader);
 
@@ -100,6 +106,12 @@ IMAGE_SECTION_HEADER* GetRVASectionHeader(IMAGE_DOS_HEADER* lpFileHead, DWORD dw
 	if (!lpFileHead)
 		return NULL;
 
+	/* 防御性校验：e_lfanew 不应为 0 或超出合理范围 */
+	if (lpFileHead->e_lfanew == 0 || lpFileHead->e_lfanew < sizeof(IMAGE_DOS_HEADER))
+	{
+		SetLastError(ERROR_INVALID_DATA);
+		return NULL;
+	}
 	ntHeader = (IMAGE_NT_HEADERS*)((PBYTE)lpFileHead + lpFileHead->e_lfanew);
 	section = IMAGE_FIRST_SECTION(ntHeader);
 
